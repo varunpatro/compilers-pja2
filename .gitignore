@@ -18,3 +18,10 @@ _build/
 # oasis generated files
 setup.data
 setup.log
+
+# Project specific files
+
+jlite_lexer.ml
+jlite_main
+jlite_parser.ml
+jlite_parser.mli

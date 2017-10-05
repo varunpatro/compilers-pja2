@@ -1,29 +1,33 @@
+OC = ocamlc -g -c
+OO = ocamlc -g -o
+OLEX = ocamllex
+OYACC = ocamlyacc
+
 jlite_main: jlite_structs.cmo jlite_lexer.cmo jlite_parser.cmo ir3_structs.cmo jlite_main.cmo
-	ocamlc -o jlite_main jlite_lexer.cmo jlite_parser.cmo jlite_structs.cmo jlite_main.cmo
+	$(OO) $@ $^
 
-ir3_structs.cmo:
-	ocamlc -c ir3_structs.ml
+ir3_structs.cmo: ir3_structs.ml jlite_structs.cmo
+	$(OC) $<
 
-jlite_main.cmo:
-	ocamlc -c jlite_main.ml
+jlite_main.cmo: jlite_main.ml
+	$(OC) $<
 
 jlite_structs.cmo: jlite_structs.ml
-	ocamlc -c jlite_structs.ml
+	$(OC) $<
 
-jlite_lexer.cmo: jlite_parser.cmi jlite_lexer.ml
-	ocamlc -c jlite_lexer.ml
+jlite_lexer.cmo: jlite_lexer.ml jlite_parser.cmo
+	$(OC) $<
 
-jlite_lexer.ml: jlite_lexer.mll
-	ocamllex jlite_lexer.mll
+jlite_lexer.ml: jlite_lexer.mll jlite_parser.cmo
+	$(OLEX) $<
 
-jlite_parser.cmo: jlite_structs.cmo jlite_parser.cmi jlite_parser.ml
-	ocamlc -c jlite_parser.ml
+jlite_parser.cmo: jlite_parser.ml jlite_structs.cmo
+	$(OC) jlite_parser.mli
+	$(OC) $<
 
-jlite_parser.cmi: jlite_parser.mli
-	ocamlc -c jlite_parser.mli
+jlite_parser.ml: jlite_parser.mly jlite_structs.ml
+	$(OYACC) $<
 
-jlite_parser.ml jlite_parser.mli: jlite_structs.ml jlite_parser.mly
-	ocamlyacc jlite_parser.mly
-
+.PHONY: clean
 clean:
-	rm *.cmi *.cmo *.mli jlite_lexer.ml jlite_parser.ml jlite_parser.output jlite_main
+	-rm *.cmi *.cmo *.mli jlite_lexer.ml jlite_parser.ml jlite_parser.mli jlite_parser.output jlite_main
