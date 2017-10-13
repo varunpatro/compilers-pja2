@@ -33,4 +33,4 @@ jlite_parser.ml: jlite_parser.mly jlite_structs.ml
 
 .PHONY: clean
 clean:
-	-rm *.cmi *.cmo *.mli jlite_lexer.ml jlite_parser.ml jlite_parser.mli jlite_parser.output jlite_main
+	-rm *.cmi *.cmo *.cmti *.cmt *.mli jlite_lexer.ml jlite_parser.ml jlite_parser.mli jlite_parser.output jlite_main

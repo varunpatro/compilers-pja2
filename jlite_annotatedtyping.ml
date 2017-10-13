@@ -2,16 +2,16 @@ open Jlite_structs
 
 (* helper methods *)
 
-exception DuplicateName;;
+exception DuplicateClass;;
+exception DuplicateClassMember;;
+exception DuplicateMethodMember;;
 exception InvalidVar;;
 
-let check_unique_names names =
+let is_unique_names names =
   let unique_names = List.sort_uniq compare names in
   let num_unique_names = List.length unique_names in
   let num_names = (List.length names) in
-  if num_unique_names != num_names
-  then
-    raise DuplicateName
+  num_unique_names == num_names
 
 let get_var_name
     ((var_type, var_id): var_decl) =
@@ -29,7 +29,9 @@ let check_method_decl md =
   let param_names = List.map get_var_name md.params in
   let localvar_names = List.map get_var_name md.localvars in
   let all_var_names = param_names @ localvar_names in
-  check_unique_names all_var_names;
+  if not (is_unique_names all_var_names)
+  then
+    raise DuplicateMethodMember;
 
   md
 
@@ -43,7 +45,9 @@ let check_class_decl
   let var_names = List.map get_var_name var_decls in
   let md_names = List.map get_md_name md_decls in
   let field_names = var_names @ md_names in
-  check_unique_names field_names;
+  if not (is_unique_names field_names)
+  then
+    raise DuplicateClassMember;
 
   let checked_md_decls = List.map check_method_decl md_decls in
   (class_name, var_decls, checked_md_decls)
@@ -55,7 +59,10 @@ let check_program
   let main_class_name = fst mainclass in
   let other_class_names = List.map (fun (x, _, _) -> x) classes in
   let class_names = main_class_name :: other_class_names in
-  check_unique_names class_names;
+  let value = is_unique_names class_names in
+  if not value
+  then
+    raise DuplicateClass;
 
   let checked_mainclass = check_class_main mainclass in
   let checked_classes = List.map check_class_decl classes in

@@ -28,17 +28,18 @@ let process prog =
   begin
     (* print_string (Jlite_structs.string_of_jlite_program prog); *)
 
+    (* print_endline "After static analysis"; *)
     let typedprog = (Jlite_annotatedtyping.type_check_jlite_program prog) in
-	print_string ("After static analysis\n") ;
     print_string (Jlite_structs.string_of_jlite_program typedprog);
- (* let ir3prog = Jlite_toir3.jlite_program_to_IR3 typedprog in *)
- (* print_string ("After Intermediate Code Generation\n\n") ; *)
- (* print_string (Ir3_structs.string_of_ir3_program ir3prog); *)
+
+    (* print_string ("After Intermediate Code Generation\n\n") ; *)
+    (* let ir3prog = Jlite_toir3.jlite_program_to_IR3 typedprog in *)
+    (* print_string (Ir3_structs.string_of_ir3_program ir3prog); *)
   end
 
 let _ =
   begin
-	Arg.parse [] set_source_file usage_msg ;
+    Arg.parse [] set_source_file usage_msg;
     match !source_files with
     | [] -> print_string "no file provided \n"
     | x::_->
