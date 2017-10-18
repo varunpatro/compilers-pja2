@@ -150,7 +150,7 @@ let string_of_jlite_type (e:jlite_type):string =
   | StringT -> "String"
   | VoidT -> "void"
   | ObjectT c -> c
-  | Null -> ""
+  | Null -> "NULL"
   | Method _ -> ""
   | Unknown -> ""
 

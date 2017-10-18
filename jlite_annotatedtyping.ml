@@ -312,9 +312,14 @@ let rec type_check_stmt
       let t_id = get_type_in_env env (get_var_name_from_id id) in
       let typed_exp = type_check_exp cdrs env e in
       let t_exp = get_exp_type cdrs env typed_exp in
-      if (t_id = t_exp)
-      then AssignStmt (id, typed_exp)
-      else raise InvalidTypesForAssignStmt
+      match (t_id, t_exp) with
+      | ObjectT _, Null -> AssignStmt (id, typed_exp)
+      | x, y ->
+        begin
+          if (t_id = t_exp)
+          then AssignStmt (id, typed_exp)
+          else raise InvalidTypesForAssignStmt
+        end
     end
   | AssignFieldStmt (e1, e2) ->
     begin
@@ -322,9 +327,14 @@ let rec type_check_stmt
       let typed_e2 = type_check_exp cdrs env e2 in
       let t_e1 = get_exp_type cdrs env typed_e1 in
       let t_e2 = get_exp_type cdrs env typed_e2 in
-      if (t_e1 = t_e2)
-      then AssignFieldStmt (typed_e1, typed_e2)
-      else raise InvalidTypesForAssignFieldStmt
+      match (t_e1, t_e2) with
+      | ObjectT _, Null -> AssignFieldStmt (typed_e1, typed_e2)
+      | x, y ->
+        begin
+          if (t_e1 = t_e2)
+          then AssignFieldStmt (typed_e1, typed_e2)
+          else raise InvalidTypesForAssignFieldStmt
+        end
     end
   | MdCallStmt e ->
     begin
