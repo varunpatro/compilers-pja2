@@ -240,15 +240,28 @@ let type_check_exp cdrs env exp =
   let t_exp = get_exp_type cdrs env exp in
   TypedExp (exp, t_exp)
 
-let rec get_stmts_type sts : jlite_type =
-  match sts with
+let rec get_stmts_type cdrs env stmts : jlite_type =
+  match stmts with
   | [] -> VoidT
-  | (ReturnVoidStmt, t)::rem_sts -> t
-  | (ReturnStmt _, t)::rem_sts -> t
-  | _::rem_sts -> get_stmts_type rem_sts
+  | [stmt] -> get_stmt_type cdrs env stmt
+  | ReturnVoidStmt::rem_stmts -> VoidT
+  | (ReturnStmt rexp)::rem_stmts -> get_exp_type cdrs env rexp
+  | _::rem_stmts -> get_stmts_type cdrs env rem_stmts
+
+and get_stmt_type cdrs env stmt : jlite_type =
+  match stmt with
+  | IfStmt (_, _, f) -> get_stmts_type cdrs env f
+  | WhileStmt (_, ws) -> get_stmts_type cdrs env ws
+  | ReadStmt _ -> VoidT
+  | PrintStmt _ -> VoidT
+  | AssignStmt _ -> VoidT
+  | AssignFieldStmt _ -> VoidT
+  | MdCallStmt e -> get_exp_type cdrs env e
+  | ReturnStmt e -> get_exp_type cdrs env e
+  | ReturnVoidStmt -> VoidT
 
 let rec type_check_stmt
-    (cdrs: class_desc list) (env: env) stmt : (jlite_stmt * jlite_type) =
+    (cdrs: class_desc list) (env: env) stmt : jlite_stmt =
   match stmt with
   | IfStmt (cond, t_stmts, f_stmts) ->
     begin
@@ -257,10 +270,12 @@ let rec type_check_stmt
       if t_cond = BoolT
       then
         begin
-          let typed_t_stmts, rettype_t_stmts = type_check_stmts cdrs env t_stmts in
-          let typed_f_stmts, rettype_f_stmts = type_check_stmts cdrs env f_stmts in
-          if rettype_t_stmts = rettype_f_stmts
-          then IfStmt(typed_cond, typed_t_stmts, typed_t_stmts), rettype_f_stmts
+          let typed_t_stmts = List.map (type_check_stmt cdrs env) t_stmts in
+          let typed_f_stmts = List.map (type_check_stmt cdrs env) f_stmts in
+          let type_t_stmt = get_stmts_type cdrs env typed_t_stmts in
+          let type_f_stmt = get_stmts_type cdrs env typed_f_stmts in
+          if type_t_stmt = type_f_stmt
+          then IfStmt(typed_cond, typed_t_stmts, typed_t_stmts)
           else raise InvalidStmtTypesInIfStmt
         end
       else raise InvalidConditionTypeInIfStmt
@@ -272,8 +287,8 @@ let rec type_check_stmt
       if t_cond = BoolT
       then
         begin
-          let typed_w_stmts, rettype_w_stmts = type_check_stmts cdrs env w_stmts in
-          WhileStmt (typed_cond, typed_w_stmts), rettype_w_stmts
+          let typed_w_stmts = List.map (type_check_stmt cdrs env) w_stmts in
+          WhileStmt (typed_cond, typed_w_stmts)
         end
       else raise InvalidConditionTypeInWhileStmt
     end
@@ -281,7 +296,7 @@ let rec type_check_stmt
     begin
       let t_id = get_type_in_env env (get_var_name_from_id id) in
       match t_id with
-      | IntT | BoolT | StringT -> (stmt, VoidT)
+      | IntT | BoolT | StringT -> stmt
       | _ -> raise InvalidTypesForReadStmt
     end
   | PrintStmt exp ->
@@ -289,7 +304,7 @@ let rec type_check_stmt
       let typed_exp = type_check_exp cdrs env exp in
       let t_exp = get_exp_type cdrs env typed_exp in
       match t_exp with
-      | IntT | BoolT | StringT -> (PrintStmt typed_exp, VoidT)
+      | IntT | BoolT | StringT -> PrintStmt typed_exp
       | _ -> raise InvalidTypesForPrintStmt
     end
   | AssignStmt (id, e) ->
@@ -298,7 +313,7 @@ let rec type_check_stmt
       let typed_exp = type_check_exp cdrs env e in
       let t_exp = get_exp_type cdrs env typed_exp in
       if (t_id = t_exp)
-      then (AssignStmt (id, typed_exp), VoidT)
+      then AssignStmt (id, typed_exp)
       else raise InvalidTypesForAssignStmt
     end
   | AssignFieldStmt (e1, e2) ->
@@ -308,34 +323,28 @@ let rec type_check_stmt
       let t_e1 = get_exp_type cdrs env typed_e1 in
       let t_e2 = get_exp_type cdrs env typed_e2 in
       if (t_e1 = t_e2)
-      then (AssignFieldStmt (typed_e1, typed_e2), VoidT)
+      then AssignFieldStmt (typed_e1, typed_e2)
       else raise InvalidTypesForAssignFieldStmt
     end
   | MdCallStmt e ->
     begin
       let typed_e = type_check_exp cdrs env e in
-      let t_e = get_exp_type cdrs env typed_e in
-      (MdCallStmt (typed_e), t_e)
+      MdCallStmt typed_e
     end
   | ReturnStmt e ->
     begin
       let typed_e = type_check_exp cdrs env e in
-      let t_e = get_exp_type cdrs env typed_e in
-      (ReturnStmt (typed_e), t_e)
+      ReturnStmt typed_e
     end
-  | ReturnVoidStmt -> (stmt, VoidT)
-
-and type_check_stmts cdrs env stmts =
-  let typed_stmts = List.map (type_check_stmt cdrs env) stmts in
-  let type_ret_stmts = get_stmts_type typed_stmts in
-  (List.map fst typed_stmts, type_ret_stmts)
+  | ReturnVoidStmt -> stmt
 
 let type_check_md_decl
     (cdrs:class_desc list) (class_env:env) md : md_decl =
   let env = get_md_env md @ class_env in
-  let t_stmts, last_ret = type_check_stmts cdrs env md.stmts in
-  if last_ret == md.rettype
-  then {md with stmts = t_stmts}
+  let typed_stmts = List.map (type_check_stmt cdrs env) md.stmts in
+  let type_stmts = get_stmts_type cdrs env typed_stmts in
+  if type_stmts == md.rettype
+  then {md with stmts = typed_stmts}
   else raise InvalidTypeReturnedInMethod
 
 let type_check_main_class
