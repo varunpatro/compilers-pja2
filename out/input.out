@@ -1,0 +1,33 @@
+Parsing...
+Tests/input.j
+======= IR3 Program =======
+
+======= CData3 ======= 
+
+class MainC{
+}
+
+class Functional{
+  Int a;
+}
+
+=======  CMtd3 ======= 
+
+void main(MainC this){
+  Int i;
+  Functional fnl;
+  Int _t1;
+  _t1=[1,2](*);
+  i=[i,_t1](+);
+  i=[Functional_0(fnl,5)];
+  Return;
+}
+
+Int Functional_0(Functional this,Int b){
+  Int _t2;
+  _t2=[Functional_0(this,3)];
+  Return _t2;
+}
+
+======= End of IR3 Program =======
+

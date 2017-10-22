@@ -1,0 +1,108 @@
+Parsing...
+Tests/binary_tree.j
+======= IR3 Program =======
+
+======= CData3 ======= 
+
+class Main{
+}
+
+class Node{
+  Node right_child;
+  Node left_child;
+  Int value;
+}
+
+=======  CMtd3 ======= 
+
+void main(Main this,Int v1,Int v2,Int v3,Int target){
+  Node n1;
+  Node n2;
+  Node n3;
+  Return;
+}
+
+void Node_0(Node this,Int value){
+  this.value=this.value;
+  this.left_child=this.left_child;
+  this.right_child=this.right_child;
+}
+
+void Node_1(Node this,Node child){
+  this.left_child=this.left_child;
+}
+
+void Node_2(Node this,Node child){
+  this.right_child=this.right_child;
+}
+
+void Node_3(Node this,Int value){
+  this.value=this.value;
+}
+
+Bool Node_4(Node this,Int target){
+  Int _t1;
+  Bool _t2;
+  Bool _t3;
+  Int _t4;
+  Bool _t5;
+  Node _t6;
+  Bool _t7;
+  Bool _t8;
+  Node _t9;
+  Bool _t10;
+  Int _t11;
+  Bool _t12;
+  Node _t13;
+  Bool _t14;
+  Bool _t15;
+  Node _t16;
+  Bool _t17;
+  Bool _t18;
+  _t1=this.value;
+  _t2=[target,_t1](==);
+  If(_t2) goto 1;
+    goto 2;
+Label 1:
+  _t3=true;
+  Return _t3;
+    goto 3;
+Label 2:
+  _t4=this.value;
+  _t5=[target,_t4](<);
+  _t6=this.left_child;
+  _t7=[_t6,0](!=);
+  _t8=[_t5,_t7](&&);
+  If(_t8) goto 4;
+    goto 5;
+Label 4:
+  _t9=this.left_child;
+  _t10=[Node_4(_t9,target)];
+  Return _t10;
+    goto 6;
+Label 5:
+  _t11=this.value;
+  _t12=[target,_t11](>);
+  _t13=this.right_child;
+  _t14=[_t13,0](!=);
+  _t15=[_t12,_t14](&&);
+  If(_t15) goto 7;
+    goto 8;
+Label 7:
+  _t16=this.left_child;
+  _t17=[Node_4(_t16,target)];
+  Return _t17;
+    goto 9;
+Label 8:
+  _t18=false;
+  Return _t18;
+    goto 9;
+Label 9:
+    goto 6;
+Label 6:
+    goto 3;
+Label 3:
+}
+
+======= End of IR3 Program =======
+

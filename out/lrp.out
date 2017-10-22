@@ -1,0 +1,125 @@
+Parsing...
+Tests/lrp.j
+======= IR3 Program =======
+
+======= CData3 ======= 
+
+class LRP{
+}
+
+class ListPrinter{
+}
+
+class ListReverser{
+}
+
+class List{
+  List tailmem;
+  Int val;
+  Bool is_empty;
+}
+
+=======  CMtd3 ======= 
+
+void main(LRP this){
+  List list;
+  List reversed;
+  List ptr;
+  ListReverser lr;
+  List _t1;
+  List _t2;
+  List _t3;
+  Int _t4;
+  Int _t5;
+  _t1=[List_3(list)];
+  _t2=[List_4(list,3,_t1)];
+  _t3=[List_4(list,2,_t2)];
+  list=[List_4(list,1,_t3)];
+  _t4=[List_1(list)];
+  println(_t4);
+  reversed=[ListReverser_0(lr,list)];
+  _t5=[List_1(reversed)];
+  println(_t5);
+  Return;
+}
+
+void ListPrinter_0(ListPrinter this,List list){
+  List ptr;
+  Bool _t6;
+  Int _t7;
+  ptr=list;
+Label 1:
+  _t6=[List_5(ptr)];
+  If((!)
+[_t6]) goto 2;
+    goto 3;
+Label 2:
+  _t7=[List_1(ptr)];
+  println(_t7);
+  ptr=[List_2(ptr)];
+    goto 1;
+Label 3:
+}
+
+List ListReverser_0(ListReverser this,List list){
+  Bool _t8;
+  Int _t9;
+  List _t10;
+  List _t11;
+   _t12;
+  _t8=[List_5(list)];
+  If(_t8) goto 4;
+    goto 5;
+Label 4:
+  Return list;
+    goto 6;
+Label 5:
+  _t9=[List_1(list)];
+  _t10=[List_2(list)];
+  _t11=[ListReverser_0(this,_t10)];
+  [List_4(list,_t9,_t11)];
+  _t12=0;
+  Return _t12;
+    goto 6;
+Label 6:
+}
+
+void List_0(List this,Bool e,Int v,List t){
+  this.is_empty=this.is_empty;
+  this.val=this.val;
+  this.tailmem=this.tailmem;
+  Return;
+}
+
+Int List_1(List this){
+  Int _t13;
+  _t13=this.val;
+  Return _t13;
+}
+
+List List_2(List this){
+  List _t14;
+  _t14=this.tailmem;
+  Return _t14;
+}
+
+List List_3(List this){
+  List result;
+  [List_0(result,true,0,0)];
+  Return result;
+}
+
+List List_4(List this,Int v,List t){
+  List result;
+  [List_0(result,false,v,t)];
+  Return result;
+}
+
+Bool List_5(List this){
+  Bool _t15;
+  _t15=this.is_empty;
+  Return _t15;
+}
+
+======= End of IR3 Program =======
+

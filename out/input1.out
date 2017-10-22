@@ -1,0 +1,68 @@
+Parsing...
+Tests/input1.j
+======= IR3 Program =======
+
+======= CData3 ======= 
+
+class MainC{
+}
+
+class Functional{
+  Kappa k;
+  Int a;
+}
+
+class Kappa{
+  Functional ff;
+  Int j;
+}
+
+=======  CMtd3 ======= 
+
+void main(MainC this){
+  Int i;
+  Functional fork;
+  Int _t1;
+  Int _t2;
+  _t1=[1,2](*);
+  i=[i,_t1](+);
+  _t2=[Functional_0(fork,5)];
+  i=[i,_t2](+);
+  println(i);
+  Return;
+}
+
+Int Functional_0(Functional this,Int b){
+  Kappa _t3;
+  Int _t4;
+  Int _t5;
+  _t3=this.k;
+  _t4=[Functional_0(this,3)];
+  _t5=[Kappa_0(_t3,b,_t4)];
+  Return _t5;
+}
+
+Int Kappa_0(Kappa this,Int x,Int y){
+  Bool _t6;
+  Int _t7;
+  Functional _t8;
+  Kappa _t9;
+  Int _t10;
+  _t6=[x,0](>);
+  If(_t6) goto 1;
+    goto 2;
+Label 1:
+  _t7=[Kappa_0(this,x,y)];
+  Return _t7;
+    goto 3;
+Label 2:
+  _t8=this.ff;
+  _t9=_t8.k;
+  _t10=[Kappa_0(_t9,x,y)];
+  Return _t10;
+    goto 3;
+Label 3:
+}
+
+======= End of IR3 Program =======
+

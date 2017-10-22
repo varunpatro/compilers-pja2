@@ -1,0 +1,70 @@
+Parsing...
+Tests/while.j
+======= IR3 Program =======
+
+======= CData3 ======= 
+
+class Test{
+}
+
+class A{
+  B myCustomProp;
+}
+
+class B{
+}
+
+=======  CMtd3 ======= 
+
+void main(Test this){
+  Bool a;
+  Bool b;
+  Bool c;
+  Bool d;
+  Int x;
+  Int y;
+  Int z;
+  A myCustomClass;
+  Bool _t1;
+  Bool _t2;
+  Bool _t3;
+  Bool _t4;
+  Bool _t5;
+  Bool _t6;
+  Bool _t7;
+  B _t8;
+  _t1=[b,c](&&);
+  _t2=[_t1,d](&&);
+  _t3=[a,_t2](||);
+  If(_t3) goto 1;
+    goto 2;
+Label 1:
+Label 4:
+  _t4=[x,1](!=);
+  _t5=[y,z](>=);
+  _t6=[_t4,_t5](&&);
+  _t7=[x,y](<);
+  If([_t6,_t7](&&)) goto 5;
+    goto 6;
+Label 5:
+  _t8=myCustomClass.myCustomProp;
+  x=[B_0(_t8)];
+    goto 4;
+Label 6:
+    goto 3;
+Label 2:
+  y=102;
+  println(y);
+    goto 3;
+Label 3:
+  Return;
+}
+
+Int B_0(B this){
+  Int _t9;
+  _t9=123;
+  Return _t9;
+}
+
+======= End of IR3 Program =======
+

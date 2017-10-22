@@ -1,0 +1,82 @@
+Parsing...
+Tests/simple.j
+======= IR3 Program =======
+
+======= CData3 ======= 
+
+class A{
+}
+
+class A2{
+}
+
+class B{
+  A2 hi;
+  Int temperature;
+}
+
+=======  CMtd3 ======= 
+
+void main(A this,Bool d){
+  Int a;
+  Int b;
+  Int i;
+  Bool _t1;
+  a=[1,2](+);
+  _t1=[i,0](>);
+  If(_t1) goto 1;
+    goto 2;
+Label 1:
+  i=[i,2](+);
+  i=[i,2](*);
+    goto 3;
+Label 2:
+  println(i);
+    goto 3;
+Label 3:
+  Return;
+}
+
+void A2_0(A2 this,Bool d){
+  Int a;
+  Bool b;
+  B c;
+  c=new B();
+  c=0;
+  a=[B_2(c)];
+  a=c.temperature;
+  Return;
+}
+
+Bool B_0(B this,Int temp){
+  Bool _t2;
+  this.temperature=temp;
+  temp=[B_2(this)];
+  _t2=true;
+  Return _t2;
+}
+
+B B_1(B this){
+  B x;
+   _t3;
+  x=new B();
+  _t3=0;
+  Return _t3;
+}
+
+Int B_2(B this){
+  Int _t4;
+  _t4=this.temperature;
+  Return _t4;
+}
+
+void B_3(B this){
+  A2 _t5;
+  void _t6;
+  _t5=this.hi;
+  _t6=[A2_0(_t5,false)];
+  Return _t6;
+}
+
+======= End of IR3 Program =======
+

@@ -1,25 +1,9 @@
-This package aims to provide basic code so that students can work on the 
-second project assignment, which is to turn the jlite programs to intermediate
-codes written in the intermdiate representation called "IR3".  
+There are naming conflicts between the programs provided and the parser that's implemented.
 
-The package contains Ocaml codes that handles the lexer and parser 
-for jLite programs
+To prevent any ambiguity, here are the standards I followed:
 
-The main program for this package is 
-		jlite_main.ml
-
-It makes use of the data structure file "jlite_structs.ml" to construct
-parse trees. 
-
-Students are required to develop code that performs two things:
-1. perform semantics analysis on the parse trees to ensure that the jlite programs
-meet the semantics requirements. 
-2. perform intermediate code generation to produce IR3 codes. 
-
-In order to have standardize three address code format, the structure of the
-3-address code is defined in the file "ir3_structs.ml". 
-
-There are some test cases available in the directory "Tests". 
-
-If we runs jlite_main program against these test cases, one will get the
-parsing results printed.  
+1. The =void= keyword has to be lower case. The upper case =Void= is a custom type.
+2. The =NULL= keyword has to be all upper case.
+3. To compile the code, run ~make -B=~
+4. To output the IR3 representation, run ~./jlite_main Tests/simple.j=~
+5. Compare the output of the program with the output in the =out= folder.

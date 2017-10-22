@@ -1,0 +1,44 @@
+Parsing...
+Tests/example.j
+======= IR3 Program =======
+
+======= CData3 ======= 
+
+class MainC{
+}
+
+class Functional{
+  Int a;
+}
+
+=======  CMtd3 ======= 
+
+void main(MainC this){
+  Functional fo;
+  Int i;
+  Int j;
+  Bool _t1;
+  readln(i);
+  _t1=[i,0](>);
+  If(_t1) goto 1;
+    goto 2;
+Label 1:
+  fo=new Functional();
+  j=[Functional_0(fo,i)];
+  println(j);
+    goto 3;
+Label 2:
+  println("Error");
+    goto 3;
+Label 3:
+  Return;
+}
+
+Int Functional_0(Functional this,Int b){
+  Int _t2;
+  _t2=3;
+  Return _t2;
+}
+
+======= End of IR3 Program =======
+

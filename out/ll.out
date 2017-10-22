@@ -1,0 +1,61 @@
+Parsing...
+Tests/ll.j
+======= IR3 Program =======
+
+======= CData3 ======= 
+
+class Main{
+}
+
+class Node{
+  Node next;
+  Int x;
+}
+
+class LinkedList{
+  Node head;
+}
+
+=======  CMtd3 ======= 
+
+void main(Main this){
+  LinkedList ls;
+  Int i;
+  ls=new LinkedList();
+  i=0;
+Label 1:
+  If([i,10](<)) goto 2;
+    goto 3;
+Label 2:
+  [LinkedList_0(ls,i)];
+  i=[i,1](+);
+    goto 1;
+Label 3:
+  [LinkedList_1(ls)];
+}
+
+void LinkedList_0(LinkedList this,Int x){
+  Node n;
+  n=new Node();
+  n.x=n.x;
+  n.next=n.next;
+  this.head=n;
+}
+
+void LinkedList_1(LinkedList this){
+  Node curr;
+  Int _t1;
+  curr=this.head;
+Label 4:
+  If([curr,0](!=)) goto 5;
+    goto 6;
+Label 5:
+  _t1=curr.x;
+  println(_t1);
+  curr=curr.next;
+    goto 4;
+Label 6:
+}
+
+======= End of IR3 Program =======
+
