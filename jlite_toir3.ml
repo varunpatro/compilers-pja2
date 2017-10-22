@@ -43,6 +43,17 @@ let ir3expr_to_id3 expr jt vars stmts toidc3 =
        stmts @ [new_stmt])
     end
 
+let varid_to_ir3exp
+    cname v toid3 : (ir3_exp * var_decl3 list * ir3_stmt list) =
+  match v with
+  | SimpleVarId id -> (Idc3Expr (Var3 id), [], [])
+  | TypedVarId (id, t, s) ->
+    if s = 1
+    then let thisExpr =
+           FieldAccess3 ("this", id) in
+      (ir3expr_to_id3 thisExpr t [] [] toid3)
+    else let newExpr = Idc3Expr (Var3 id) in
+      (newExpr, [], [])
 
 let ir3expr_get_idc3
     (expr: ir3_exp) : idc3 =
@@ -138,11 +149,7 @@ let expr_to_expr3
             let newExpr = (Idc3Expr (IntLiteral3 0)) in
 			(ir3expr_to_id3 newExpr t [] [] toid3)
           end
-        | Var id ->
-          begin
-            let newExpr = Idc3Expr (Var3 (get_var_name_from_id id)) in
-            ir3expr_to_id3 newExpr t [] [] toid3
-          end
+        | Var id -> varid_to_ir3exp cname id true
         | TypedExp (te, t) -> helper te toidc3 toid3
       end
     | _ -> raise UntypedExpression
@@ -150,17 +157,7 @@ let expr_to_expr3
 
   helper expr toidc3 toid3
 
-let varid_to_ir3exp
-    cname v toid3 : (ir3_exp * var_decl3 list * ir3_stmt list) =
-  match v with
-  | SimpleVarId id -> (Idc3Expr (Var3 id), [], [])
-  | TypedVarId (id, t, s) ->
-    if s = 1
-    then let thisExpr =
-           FieldAccess3 ("this", id) in
-      (ir3expr_to_id3 thisExpr t [] [] toid3)
-    else let newExpr = Idc3Expr (Var3 id) in
-      (newExpr, [], [])
+
 
 let rec stmts_to_IR3stmts cname md stmts =
   match stmts with
@@ -208,7 +205,14 @@ let rec stmts_to_IR3stmts cname md stmts =
             in
             (vars, stmts)
           end
-        | ReadStmt id -> ([], [ReadStmt3 (get_var_name_from_id id)])
+        | ReadStmt id ->
+          begin
+            let (idir3, idvars, idstmts) = varid_to_ir3exp cname id true in
+            let readlnIR3 = ReadStmt3 (ir3expr_get_id3 idir3) in
+            let vars = idvars in
+            let stmts = idstmts @ [readlnIR3] in
+            (vars, stmts)
+          end
         | PrintStmt e ->
           begin
             let (expr3, exprvars, exprstmts) = expr_to_expr3 cname e false false in
@@ -218,7 +222,12 @@ let rec stmts_to_IR3stmts cname md stmts =
         | AssignStmt (id, e) ->
           begin
             let (expr3, exprvars, exprstmts) = expr_to_expr3 cname e false false in
-            let assgIR3 = AssignStmt3 (get_var_name_from_id id, expr3) in
+            let assgIR3 =
+              match id with
+              | TypedVarId (x, _, 1) ->
+                AssignFieldStmt3 (FieldAccess3 ("this", x), expr3)
+              | SimpleVarId x | TypedVarId (x, _, _) -> AssignStmt3(x, expr3)
+            in
             (exprvars, exprstmts @ [assgIR3])
           end
         | AssignFieldStmt (e1, e2) ->
@@ -251,7 +260,7 @@ let get_md_decl3_from_md_decl
     (cname: class_name) (md: md_decl) : md_decl3 =
   let (nvars, nstmts)  = stmts_to_IR3stmts cname md md.stmts in
   {
-    id3 = get_var_name_from_id md.jliteid;
+    id3 = get_var_name_from_id md.ir3id;
     rettype3 = md.rettype;
     params3 =
       begin

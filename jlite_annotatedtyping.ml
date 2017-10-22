@@ -33,13 +33,13 @@ let is_unique_names names =
   let unique_names = List.sort_uniq compare names in
   let num_unique_names = List.length unique_names in
   let num_names = (List.length names) in
-  num_unique_names == num_names
+  num_unique_names = num_names
 
 let get_var_name
     ((var_type, var_id): var_decl) =
   match var_id with
   | SimpleVarId x -> x
-  | _ -> raise InvalidVar
+  | TypedVarId (name, _, _) -> name
 
 let get_md_name md_decl =
   match md_decl.jliteid with
@@ -95,7 +95,7 @@ let check_program
 type class_members_desc = ((string * jlite_type) list)
 type class_desc = class_name * class_members_desc
 
-type env = (string * jlite_type) list
+type env = var_decl list
 
 let get_main_class_type
     ((class_name, _): class_main) : jlite_type =
@@ -112,7 +112,7 @@ let get_var_type
 let get_var_name_from_id vid : string =
   match vid with
   | SimpleVarId x -> x
-  | _ -> raise InvalidVar
+  | TypedVarId (name, _, _) -> name
 
 let get_md_type md : jlite_type =
   let params_type = List.map fst md.params in
@@ -149,25 +149,42 @@ let initialize
   let cs_descs = List.map (get_class_desc classes) cs in
   mc_desc :: cs_descs
 
-let get_md_env md =
-  let all_vars = md.params @ md.localvars in
-  let names = List.map get_var_name all_vars in
-  let types = List.map get_var_type all_vars in
-  List.combine names types
+let get_typed_var_decl ((t, v): var_decl) scope =
+  let name = get_var_name_from_id v in
+  t, TypedVarId (name, t, scope)
 
-let get_class_env c vds mds =
-  let vd_env = List.map (fun vd -> (get_var_name vd, get_var_type vd)) vds in
-  let md_env = List.map (fun md -> (get_md_name md, get_md_type md)) mds in
-  ("this", ObjectT c) :: vd_env @ md_env
+let get_md_env md =
+  md.params @ md.localvars
+
+let get_class_env c vds mds : env =
+  let md_env = List.map (fun md -> (get_md_type md, SimpleVarId (get_md_name md))) mds in
+  (ObjectT c, SimpleVarId "this") :: vds @ md_env
+
+let are_equal_vars v1 v2 =
+  match v1, v2 with
+  | SimpleVarId x, SimpleVarId y -> x = y
+  | SimpleVarId x, TypedVarId (y_str, _, _) -> x = y_str
+  | TypedVarId (x_str, _, _), SimpleVarId y -> x_str = y
+  | TypedVarId (x_str, _, _), TypedVarId (y_str, _, _) -> x_str = y_str
+
+
+let rec get_var_decl_in_env
+    (env: env) (var: var_id) : var_decl =
+  match env with
+  | [] -> raise UnknownReference
+  | (t, v)::env_rem ->
+    if are_equal_vars v var
+    then (t, v)
+    else get_var_decl_in_env env_rem var
 
 let rec get_type_in_env
-    (env: env) (value: string) : jlite_type =
-  match env with
-  | (v, t)::env_rem ->
-    if (v = value)
-    then t
-    else get_type_in_env env_rem value
-  | [] -> raise UnknownReference
+    (env: env) (var: var_id) : jlite_type =
+  let (var_type, _) = get_var_decl_in_env env var in
+  var_type
+
+let rec get_var_in_env env var =
+  let (_, id) = get_var_decl_in_env env var in
+  id
 
 let rec get_type_in_cdr
     (cdr: class_members_desc) (value: string) : jlite_type =
@@ -231,9 +248,9 @@ let rec get_exp_type
   | BoolLiteral _ -> BoolT
   | IntLiteral _ -> IntT
   | StringLiteral _ -> StringT
-  | ThisWord -> get_type_in_env env "this"
+  | ThisWord -> get_type_in_env env (SimpleVarId "this")
   | NullWord -> Null
-  | Var x -> get_type_in_env env (get_var_name_from_id x)
+  | Var x -> get_type_in_env env x
   | TypedExp (_, t) -> t
 
 let rec type_check_exp cdrs env exp : jlite_exp =
@@ -257,7 +274,7 @@ let rec type_check_exp cdrs env exp : jlite_exp =
     | StringLiteral _ -> exp
     | ThisWord -> exp
     | NullWord -> exp
-    | Var _ -> exp
+    | Var e -> Var (get_var_in_env env e)
     | TypedExp (e, t) -> e
   in
   TypedExp (helper exp, get_exp_type cdrs env exp)
@@ -314,9 +331,10 @@ let rec type_check_stmt
     end
   | ReadStmt id ->
     begin
-      let t_id = get_type_in_env env (get_var_name_from_id id) in
+      let envid = get_var_in_env env id in
+      let t_id = get_type_in_env env envid in
       match t_id with
-      | IntT | BoolT | StringT -> stmt
+      | IntT | BoolT | StringT -> ReadStmt envid
       | _ -> raise InvalidTypesForReadStmt
     end
   | PrintStmt exp ->
@@ -329,15 +347,16 @@ let rec type_check_stmt
     end
   | AssignStmt (id, e) ->
     begin
-      let t_id = get_type_in_env env (get_var_name_from_id id) in
+      let envid = get_var_in_env env id in
+      let t_id = get_type_in_env env envid in
       let typed_exp = type_check_exp cdrs env e in
       let t_exp = get_exp_type cdrs env typed_exp in
       match (t_id, t_exp) with
-      | ObjectT _, Null -> AssignStmt (id, typed_exp)
+      | ObjectT _, Null -> AssignStmt (envid, typed_exp)
       | x, y ->
         begin
           if (t_id = t_exp)
-          then AssignStmt (id, typed_exp)
+          then AssignStmt (envid, typed_exp)
           else raise InvalidTypesForAssignStmt
         end
     end
@@ -376,25 +395,51 @@ and type_check_stmts cdrs env stmts =
   | stmt::rem_stmts -> type_check_stmt cdrs env stmt :: type_check_stmts cdrs env rem_stmts
 
 let type_check_md_decl
-    (cdrs:class_desc list) (class_env:env) md : md_decl =
+    (cname: class_name) (cdrs:class_desc list) (class_env:env) md (md_count: int) : md_decl =
   let env = get_md_env md @ class_env in
   let typed_stmts = type_check_stmts cdrs env md.stmts in
   let type_stmts = get_stmts_type cdrs env typed_stmts in
-  if type_stmts == md.rettype
-  then {md with stmts = typed_stmts}
+  let is_correct_ret_type t_s t_md =
+    match (t_s, t_md) with
+    | Null, ObjectT _ -> true
+    | x, y -> x = y
+  in
+  let new_md_ir3id =
+    if md_count > -1
+    then SimpleVarId (cname ^ "_" ^ string_of_int md_count)
+    else md.jliteid
+  in
+  if is_correct_ret_type type_stmts md.rettype
+  then
+    {
+      md with stmts = typed_stmts;
+              ir3id = new_md_ir3id;
+    }
   else raise InvalidTypeReturnedInMethod
 
 let type_check_main_class
     cdrs ((c, md): class_main) : class_main =
   let env = get_class_env c [] [md] in
-  let t_md = type_check_md_decl cdrs env md in
+  let t_md = type_check_md_decl c cdrs env md (-1) in
   (c, t_md)
 
 let type_check_class
     cdrs ((c, vds, mds): class_decl) : class_decl =
-  let env = get_class_env c vds mds in
-  let t_mds = List.map (type_check_md_decl cdrs env) mds in
-  (c, vds, t_mds)
+
+  let t_vds = List.map (fun v -> get_typed_var_decl v 1) vds in
+  let env = get_class_env c t_vds mds in
+  let rec helper mds count =
+    match mds with
+    | [] -> []
+    | md::rem_mds ->
+      begin
+        let t_md = type_check_md_decl c cdrs env md count in
+        let rem_t_mds = helper rem_mds (count + 1) in
+        t_md :: rem_t_mds
+      end
+  in
+  let t_mds = helper mds 0 in
+  (c, t_vds, t_mds)
 
 let type_check_prog
     ((mainclass, classes): jlite_program) : jlite_program =
