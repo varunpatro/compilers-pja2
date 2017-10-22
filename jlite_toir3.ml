@@ -2,7 +2,6 @@ open Jlite_structs
 open Ir3_structs
 open Jlite_annotatedtyping
 
-exception UntypedExpression;;
 exception InvalidExprForId3;;
 exception InvalidExprForIdc3;;
 
@@ -126,7 +125,7 @@ let expr_to_expr3
             let args_idc3 = Var3 caller :: List.map ir3expr_get_idc3 args_ir3 in
             let newExpr = MdCall3 (get_var_name_from_id callee, args_idc3) in
             (ir3expr_to_id3 newExpr t
-               (List.flatten args_vars) (List.flatten args_stmts) toidc3)
+               (evars @ List.flatten args_vars) (estmts @ List.flatten args_stmts) toidc3)
           end
         | BoolLiteral b ->
           begin

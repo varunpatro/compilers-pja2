@@ -10,6 +10,8 @@ exception DuplicateMethodMember;;
 exception UnknownClass;;
 exception UnknownClassMember;;
 exception UnknownReference;;
+exception UntypedExpression;;
+
 exception FieldNotFoundInEnv;;
 exception FieldNotFoundInClass;;
 exception InvalidPrintArgument;;
@@ -93,7 +95,8 @@ let check_program
   checked_mainclass && checked_classes
 
 type class_members_desc = ((string * jlite_type) list)
-type class_desc = class_name * class_members_desc
+type class_mds_map = (string * string) list
+type class_desc = class_name * class_members_desc * class_mds_map
 
 type env = var_decl list
 
@@ -114,18 +117,27 @@ let get_var_name_from_id vid : string =
   | SimpleVarId x -> x
   | TypedVarId (name, _, _) -> name
 
-let get_md_type md : jlite_type =
+let get_md_type md cname : jlite_type =
   let params_type = List.map fst md.params in
-  Method (params_type, md.rettype)
+  Method (params_type, md.rettype, cname)
 
 let get_md_name md : string =
   get_var_name_from_id md.jliteid
 
+let get_md_ir3_name cname count : string =
+  cname ^ "_" ^ string_of_int count
+
 let get_main_class_desc
     available_classes ((cname, md): class_main) : class_desc =
 
-  let cd_prop = ("main", get_md_type md) in
-  (cname, [cd_prop])
+  let cd_prop = ("main", get_md_type md cname) in
+  (cname, [cd_prop], [("main", "main")])
+
+let rec range n =
+  if n < 1
+  then []
+  else range (n - 1) @ [n - 1]
+
 
 let get_class_desc
     available_classes ((cname, vds, mds): class_decl) : class_desc =
@@ -134,10 +146,12 @@ let get_class_desc
   let vd_types = List.map get_var_type vds in
   let vd_props = List.combine vd_names vd_types in
   let md_names = List.map get_md_name mds in
-  let md_types = List.map get_md_type mds in
+  let md_ir3_names = List.map (get_md_ir3_name cname) (range (List.length mds)) in
+  let md_types = List.map (fun x -> get_md_type x cname) mds in
   let md_props = List.combine md_names md_types in
+  let md_ir3_mapping = List.combine md_names md_ir3_names in
   let cd_props = vd_props @ md_props in
-  (cname, cd_props)
+  (cname, cd_props, md_ir3_mapping)
 
 let initialize
     ((mc, cs): jlite_program) =
@@ -157,7 +171,7 @@ let get_md_env md =
   md.params @ md.localvars
 
 let get_class_env c vds mds : env =
-  let md_env = List.map (fun md -> (get_md_type md, SimpleVarId (get_md_name md))) mds in
+  let md_env = List.map (fun md -> (get_md_type md c, SimpleVarId (get_md_name md))) mds in
   (ObjectT c, SimpleVarId "this") :: vds @ md_env
 
 let are_equal_vars v1 v2 =
@@ -166,7 +180,6 @@ let are_equal_vars v1 v2 =
   | SimpleVarId x, TypedVarId (y_str, _, _) -> x = y_str
   | TypedVarId (x_str, _, _), SimpleVarId y -> x_str = y
   | TypedVarId (x_str, _, _), TypedVarId (y_str, _, _) -> x_str = y_str
-
 
 let rec get_var_decl_in_env
     (env: env) (var: var_id) : var_decl =
@@ -186,6 +199,13 @@ let rec get_var_in_env env var =
   let (_, id) = get_var_decl_in_env env var in
   id
 
+let get_cname_from_env_var_name env var_name =
+  let var = SimpleVarId var_name in
+  let t_var = get_type_in_env env var in
+  match t_var with
+  | ObjectT x -> x
+  | _ -> raise UnknownClass
+
 let rec get_type_in_cdr
     (cdr: class_members_desc) (value: string) : jlite_type =
   match cdr with
@@ -196,18 +216,25 @@ let rec get_type_in_cdr
   | [] -> raise UnknownClassMember
 
 let rec get_cdr_in_cdrs
-    (cdrs: class_desc list) (cname: class_name) : class_members_desc =
+    (cdrs: class_desc list) (cname: class_name) : class_members_desc * class_mds_map =
   match cdrs with
-  | (cdr_name, cdr)::cdrs_rem ->
+  | (cdr_name, cdr, cmds_map)::cdrs_rem ->
     if (cdr_name = cname)
-    then cdr
+    then (cdr, cmds_map)
     else get_cdr_in_cdrs cdrs_rem cname
   | [] -> raise UnknownClass
 
 let get_type_in_cdrs
     (cdrs: class_desc list) (cname: class_name) (value: string)  =
-  let cdr = get_cdr_in_cdrs cdrs cname in
+  let (cdr, _) = get_cdr_in_cdrs cdrs cname in
   get_type_in_cdr cdr value
+
+let get_ir3_name_from_jlite
+    (cdrs: class_desc list) (cname: class_name) var_name : string =
+  let (_, ir3_map) = get_cdr_in_cdrs cdrs cname in
+  match List.find_opt (fun (x, _) -> x = var_name) ir3_map with
+  | None -> raise UnknownReference
+  | Some (_, y) -> y
 
 let rec get_exp_type
     (cdrs: class_desc list) (env: env) exp : jlite_type =
@@ -239,7 +266,7 @@ let rec get_exp_type
       let t_e = get_exp_type cdrs env e in
       let t_es = List.map (get_exp_type cdrs env) es in
       match (t_e, t_es) with
-      | (Method (params, ret), args) ->
+      | (Method (params, ret, _), args) ->
         if (params = args)
         then ret
         else raise InvalidArgumentsForMdCall
@@ -268,7 +295,35 @@ let rec type_check_exp cdrs env exp : jlite_exp =
     | MdCall (e, es) ->
       let t_e = type_check_exp cdrs env e in
       let t_es = List.map (type_check_exp cdrs env) es in
-      MdCall (t_e, t_es)
+      let renamed_t_e =
+        begin
+          match t_e with
+          | TypedExp(te, t) ->
+            begin
+              match te with
+              | Var (SimpleVarId v) ->
+                begin
+                  let cname = get_cname_from_env_var_name env "this" in
+                  let ir3_name = get_ir3_name_from_jlite cdrs cname v in
+                  TypedExp(Var (SimpleVarId ir3_name), t)
+                end
+              | FieldAccess (TypedExp(Var (SimpleVarId v), tv), SimpleVarId m) ->
+                begin
+                  let cname = get_cname_from_env_var_name env v in
+                  let ir3_name = get_ir3_name_from_jlite cdrs cname m in
+                  TypedExp(FieldAccess (TypedExp(Var (SimpleVarId v), tv), SimpleVarId ir3_name), t)
+                end
+              | FieldAccess (TypedExp(Var (TypedVarId (vi, tvi, s)), tv), SimpleVarId m) ->
+                begin
+                  let cname = get_cname_from_env_var_name env vi in
+                  let ir3_name = get_ir3_name_from_jlite cdrs cname m in
+                  TypedExp(FieldAccess (TypedExp(Var (TypedVarId (vi, tvi, s)), tv), SimpleVarId ir3_name), t)
+                end
+            end
+          | _ -> raise UntypedExpression
+        end
+      in
+      MdCall (renamed_t_e, t_es)
     | BoolLiteral _ -> exp
     | IntLiteral _ -> exp
     | StringLiteral _ -> exp

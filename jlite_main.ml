@@ -30,11 +30,11 @@ let process prog =
 
     (* print_endline "After static analysis"; *)
     let typedprog = (Jlite_annotatedtyping.type_check_jlite_program prog) in
-    print_string (Jlite_structs.string_of_jlite_program typedprog);
+    (* print_string (Jlite_structs.string_of_jlite_program typedprog); *)
 
     (* print_string ("After Intermediate Code Generation\n\n") ; *)
-    (* let ir3prog = Jlite_toir3.jlite_program_to_IR3 typedprog in *)
-    (* print_string (Ir3_structs.string_of_ir3_program ir3prog); *)
+    let ir3prog = Jlite_toir3.jlite_program_to_IR3 typedprog in
+    print_string (Ir3_structs.string_of_ir3_program ir3prog);
   end
 
 let _ =

@@ -27,7 +27,7 @@ type jlite_type =
   | VoidT
   (* Reserved for type checking. Please do not instantiate during parsing *)
   | Null
-  | Method of ((jlite_type list) * jlite_type)
+  | Method of ((jlite_type list) * jlite_type * class_name)
   | Unknown
 
 
