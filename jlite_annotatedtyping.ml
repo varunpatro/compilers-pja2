@@ -236,16 +236,36 @@ let rec get_exp_type
   | Var x -> get_type_in_env env (get_var_name_from_id x)
   | TypedExp (_, t) -> t
 
-let type_check_exp cdrs env exp =
-  let t_exp = get_exp_type cdrs env exp in
-  TypedExp (exp, t_exp)
+let rec type_check_exp cdrs env exp : jlite_exp =
+  let rec helper exp =
+    match exp with
+    | UnaryExp (u, e) -> UnaryExp (u, type_check_exp cdrs env e)
+    | BinaryExp (b, e1, e2) ->
+      begin
+        let t_e1 = type_check_exp cdrs env e1 in
+        let t_e2 = type_check_exp cdrs env e2 in
+        BinaryExp (b, t_e1, t_e2)
+      end
+    | FieldAccess (e, id) -> FieldAccess (type_check_exp cdrs env e, id)
+    | ObjectCreate _ -> exp
+    | MdCall (e, es) ->
+      let t_e = type_check_exp cdrs env e in
+      let t_es = List.map (type_check_exp cdrs env) es in
+      MdCall (t_e, t_es)
+    | BoolLiteral _ -> exp
+    | IntLiteral _ -> exp
+    | StringLiteral _ -> exp
+    | ThisWord -> exp
+    | NullWord -> exp
+    | Var _ -> exp
+    | TypedExp (e, t) -> e
+  in
+  TypedExp (helper exp, get_exp_type cdrs env exp)
 
 let rec get_stmts_type cdrs env stmts : jlite_type =
   match stmts with
   | [] -> VoidT
   | [stmt] -> get_stmt_type cdrs env stmt
-  | ReturnVoidStmt::rem_stmts -> VoidT
-  | (ReturnStmt rexp)::rem_stmts -> get_exp_type cdrs env rexp
   | _::rem_stmts -> get_stmts_type cdrs env rem_stmts
 
 and get_stmt_type cdrs env stmt : jlite_type =
@@ -270,12 +290,12 @@ let rec type_check_stmt
       if t_cond = BoolT
       then
         begin
-          let typed_t_stmts = List.map (type_check_stmt cdrs env) t_stmts in
-          let typed_f_stmts = List.map (type_check_stmt cdrs env) f_stmts in
+          let typed_t_stmts = type_check_stmts cdrs env t_stmts in
+          let typed_f_stmts = type_check_stmts cdrs env f_stmts in
           let type_t_stmt = get_stmts_type cdrs env typed_t_stmts in
           let type_f_stmt = get_stmts_type cdrs env typed_f_stmts in
           if type_t_stmt = type_f_stmt
-          then IfStmt(typed_cond, typed_t_stmts, typed_t_stmts)
+          then IfStmt(typed_cond, typed_t_stmts, typed_f_stmts)
           else raise InvalidStmtTypesInIfStmt
         end
       else raise InvalidConditionTypeInIfStmt
@@ -287,7 +307,7 @@ let rec type_check_stmt
       if t_cond = BoolT
       then
         begin
-          let typed_w_stmts = List.map (type_check_stmt cdrs env) w_stmts in
+          let typed_w_stmts = type_check_stmts cdrs env w_stmts in
           WhileStmt (typed_cond, typed_w_stmts)
         end
       else raise InvalidConditionTypeInWhileStmt
@@ -348,10 +368,17 @@ let rec type_check_stmt
     end
   | ReturnVoidStmt -> stmt
 
+and type_check_stmts cdrs env stmts =
+  match stmts with
+  | [] -> []
+  | ReturnVoidStmt::_ -> [ReturnVoidStmt]
+  | (ReturnStmt rexp)::_ -> [ReturnStmt (type_check_exp cdrs env rexp)]
+  | stmt::rem_stmts -> type_check_stmt cdrs env stmt :: type_check_stmts cdrs env rem_stmts
+
 let type_check_md_decl
     (cdrs:class_desc list) (class_env:env) md : md_decl =
   let env = get_md_env md @ class_env in
-  let typed_stmts = List.map (type_check_stmt cdrs env) md.stmts in
+  let typed_stmts = type_check_stmts cdrs env md.stmts in
   let type_stmts = get_stmts_type cdrs env typed_stmts in
   if type_stmts == md.rettype
   then {md with stmts = typed_stmts}
