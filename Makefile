@@ -18,7 +18,7 @@ jlite_structs.cmo: jlite_structs.ml
 jlite_annotatedtyping.cmo: jlite_annotatedtyping.ml jlite_structs.cmo
 	$(OC) $<
 
-jlite_toir3.cmo: jlite_toir3.ml ir3_structs.cmo
+jlite_toir3.cmo: jlite_toir3.ml ir3_structs.cmo jlite_structs.cmo
 	$(OC) $<
 
 jlite_lexer.cmo: jlite_lexer.ml jlite_parser.cmo

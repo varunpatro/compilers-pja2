@@ -170,14 +170,14 @@ let rec stmts_to_IR3stmts cname md stmts =
             let true_label = fresh_label() in
             let false_label = fresh_label() in
             let finish_label = fresh_label() in
-            let (expr3, exprvars, exprstmts) = expr_to_expr3 cname e false false in
+            let (expr3, exprvars, exprstmts) = expr_to_expr3 cname e true true in
             let (tvars, tstmts) = stmts_to_IR3stmts cname md stmts1 in
             let (fvars, fstmts) = stmts_to_IR3stmts cname md stmts2 in
             let vars = exprvars @ tvars @ fvars in
             let stmts =
               begin
                 let finish = [Label3 finish_label] in
-                let check = IfStmt3 (expr3, true_label) :: [GoTo3 false_label] in
+                let check = exprstmts @ [IfStmt3 (expr3, true_label)] @ [GoTo3 false_label] in
                 let correct = Label3 true_label :: tstmts @ [GoTo3 finish_label] in
                 let incorrect = Label3 false_label :: fstmts @ [GoTo3 finish_label] in
                 check @ correct @ incorrect @ finish
@@ -214,7 +214,7 @@ let rec stmts_to_IR3stmts cname md stmts =
           end
         | PrintStmt e ->
           begin
-            let (expr3, exprvars, exprstmts) = expr_to_expr3 cname e false false in
+            let (expr3, exprvars, exprstmts) = expr_to_expr3 cname e true false in
             let printIR3 = PrintStmt3 (ir3expr_get_idc3 expr3) in
             (exprvars, exprstmts @ [printIR3])
           end
@@ -238,7 +238,7 @@ let rec stmts_to_IR3stmts cname md stmts =
           end
         | MdCallStmt e ->
           begin
-            let (expr3, exprvars, exprstmts) = expr_to_expr3 cname e true true in
+            let (expr3, exprvars, exprstmts) = expr_to_expr3 cname e false false in
             let retIR3 = (MdCallStmt3 expr3) in
             (exprvars, exprstmts @ [retIR3])
           end

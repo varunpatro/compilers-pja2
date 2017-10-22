@@ -7,9 +7,9 @@ exception DuplicateClass;;
 exception DuplicateClassMember;;
 exception DuplicateMethodMember;;
 
-exception UnknownClass;;
-exception UnknownClassMember;;
-exception UnknownReference;;
+exception UnknownClass of string;;
+exception UnknownClassMember of string;;
+exception UnknownReference of string;;
 exception UntypedExpression;;
 
 exception FieldNotFoundInEnv;;
@@ -22,7 +22,7 @@ exception InvalidTypesForAssignStmt;;
 exception InvalidTypesForAssignFieldStmt;;
 exception InvalidTypesForReadStmt;;
 exception InvalidTypesForPrintStmt;;
-exception InvalidTypeReturnedInMethod;;
+exception InvalidTypeReturnedInMethod of string;;
 exception InvalidConditionTypeInIfStmt;;
 exception InvalidStmtTypesInIfStmt;;
 exception InvalidConditionTypeInWhileStmt;;
@@ -138,6 +138,18 @@ let rec range n =
   then []
   else range (n - 1) @ [n - 1]
 
+let rec are_same_types l1 l2 =
+  match l1, l2 with
+  | [], [] -> true
+  | x::xs, y::ys ->
+    begin
+      match x, y with
+      | ObjectT _, Null -> are_same_types xs ys
+      | Null, ObjectT _ -> are_same_types xs ys
+      | a, b -> if a = b then are_same_types xs ys else false
+    end
+  | _ -> false
+
 
 let get_class_desc
     available_classes ((cname, vds, mds): class_decl) : class_desc =
@@ -184,7 +196,7 @@ let are_equal_vars v1 v2 =
 let rec get_var_decl_in_env
     (env: env) (var: var_id) : var_decl =
   match env with
-  | [] -> raise UnknownReference
+  | [] -> raise (UnknownReference (get_var_name_from_id var))
   | (t, v)::env_rem ->
     if are_equal_vars v var
     then (t, v)
@@ -204,7 +216,7 @@ let get_cname_from_env_var_name env var_name =
   let t_var = get_type_in_env env var in
   match t_var with
   | ObjectT x -> x
-  | _ -> raise UnknownClass
+  | _ -> raise (UnknownClass var_name)
 
 let rec get_type_in_cdr
     (cdr: class_members_desc) (value: string) : jlite_type =
@@ -213,7 +225,7 @@ let rec get_type_in_cdr
     if (v = value)
     then t
     else get_type_in_cdr cdr_rem value
-  | [] -> raise UnknownClassMember
+  | [] -> raise (UnknownClassMember value)
 
 let rec get_cdr_in_cdrs
     (cdrs: class_desc list) (cname: class_name) : class_members_desc * class_mds_map =
@@ -222,7 +234,7 @@ let rec get_cdr_in_cdrs
     if (cdr_name = cname)
     then (cdr, cmds_map)
     else get_cdr_in_cdrs cdrs_rem cname
-  | [] -> raise UnknownClass
+  | [] -> raise (UnknownClass cname)
 
 let get_type_in_cdrs
     (cdrs: class_desc list) (cname: class_name) (value: string)  =
@@ -233,7 +245,7 @@ let get_ir3_name_from_jlite
     (cdrs: class_desc list) (cname: class_name) var_name : string =
   let (_, ir3_map) = get_cdr_in_cdrs cdrs cname in
   match List.find_opt (fun (x, _) -> x = var_name) ir3_map with
-  | None -> raise UnknownReference
+  | None -> raise (UnknownReference var_name)
   | Some (_, y) -> y
 
 let rec get_exp_type
@@ -247,6 +259,10 @@ let rec get_exp_type
       match (op, t_x, t_y) with
       | (BooleanOp _, BoolT, BoolT) -> BoolT
       | (RelationalOp _, IntT, IntT) -> BoolT
+      | (RelationalOp "==", ObjectT t1, Null) -> BoolT
+      | (RelationalOp "!=", ObjectT t1, Null) -> BoolT
+      | (RelationalOp "==", Null, ObjectT t1) -> BoolT
+      | (RelationalOp "!=", Null, ObjectT t1) -> BoolT
       | (AritmeticOp _, IntT, IntT) -> IntT
       | _ -> raise InvalidTypesForBinaryExp
     end
@@ -267,7 +283,7 @@ let rec get_exp_type
       let t_es = List.map (get_exp_type cdrs env) es in
       match (t_e, t_es) with
       | (Method (params, ret, _), args) ->
-        if (params = args)
+        if are_same_types params args
         then ret
         else raise InvalidArgumentsForMdCall
       | _ -> raise InvalidTypesForMdCall
@@ -307,17 +323,11 @@ let rec type_check_exp cdrs env exp : jlite_exp =
                   let ir3_name = get_ir3_name_from_jlite cdrs cname v in
                   TypedExp(Var (SimpleVarId ir3_name), t)
                 end
-              | FieldAccess (TypedExp(Var (SimpleVarId v), tv), SimpleVarId m) ->
+              | FieldAccess (TypedExp(fav, tfav), SimpleVarId m) ->
                 begin
-                  let cname = get_cname_from_env_var_name env v in
+                  let ObjectT cname = tfav in
                   let ir3_name = get_ir3_name_from_jlite cdrs cname m in
-                  TypedExp(FieldAccess (TypedExp(Var (SimpleVarId v), tv), SimpleVarId ir3_name), t)
-                end
-              | FieldAccess (TypedExp(Var (TypedVarId (vi, tvi, s)), tv), SimpleVarId m) ->
-                begin
-                  let cname = get_cname_from_env_var_name env vi in
-                  let ir3_name = get_ir3_name_from_jlite cdrs cname m in
-                  TypedExp(FieldAccess (TypedExp(Var (TypedVarId (vi, tvi, s)), tv), SimpleVarId ir3_name), t)
+                  TypedExp(FieldAccess (TypedExp(fav, tfav), SimpleVarId ir3_name), t)
                 end
             end
           | _ -> raise UntypedExpression
@@ -366,7 +376,13 @@ let rec type_check_stmt
           let typed_f_stmts = type_check_stmts cdrs env f_stmts in
           let type_t_stmt = get_stmts_type cdrs env typed_t_stmts in
           let type_f_stmt = get_stmts_type cdrs env typed_f_stmts in
-          if type_t_stmt = type_f_stmt
+          let match_types =
+            match (type_t_stmt, type_f_stmt) with
+            | ObjectT _, Null -> true
+            | Null, ObjectT _ -> true
+            | t, f -> t = f
+          in
+          if match_types
           then IfStmt(typed_cond, typed_t_stmts, typed_f_stmts)
           else raise InvalidStmtTypesInIfStmt
         end
@@ -470,7 +486,7 @@ let type_check_md_decl
       md with stmts = typed_stmts;
               ir3id = new_md_ir3id;
     }
-  else raise InvalidTypeReturnedInMethod
+  else raise (InvalidTypeReturnedInMethod (get_var_name_from_id md.jliteid))
 
 let type_check_main_class
     cdrs ((c, md): class_main) : class_main =
