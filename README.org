@@ -4,6 +4,6 @@ To prevent any ambiguity, here are the standards I followed:
 
 1. The =void= keyword has to be lower case. The upper case =Void= is a custom type.
 2. The =NULL= keyword has to be all upper case.
-3. To compile the code, run ~make -B=~
-4. To output the IR3 representation, run ~./jlite_main Tests/simple.j=~
+3. To compile the code, run ~make -B~
+4. To output the IR3 representation, run ~./jlite_main Tests/simple.j~
 5. Compare the output of the program with the output in the =out= folder.
